@@ -393,7 +393,7 @@ def main(args):
     final_data = pd.merge(df_transformed, df_general, on='startup', how="left")
 
     # STEP 6: Export to CSV
-    final_data.to_csv('../../dat/startup_data_final.csv', header=True)
+    final_data.to_csv('../dat/startup_data_final.csv', header=True)
 
 if __name__ == '__main__':
     app.run(main)
