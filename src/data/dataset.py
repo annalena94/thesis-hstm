@@ -1,11 +1,10 @@
-from src.data.load_data_from_text import load_my_dataset, load_amazon
+from src.data.load_data_from_text import load_my_dataset, load_dataset_all
 import argparse
 import torch
 from torch.utils.data import Dataset
 import os
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
@@ -20,14 +19,11 @@ class LemmaTokenizer:
 
 	def __init__(self):
 		self.wnl = WordNetLemmatizer()
-
 	def __call__(self, doc):
-		#return [self.wnl.lemmatize(t) for t in word_tokenize(doc) if str.isalpha(t)]
-		return [t for t in word_tokenize(doc) if str.isalpha(t)]
-
+		return [self.wnl.lemmatize(t) for t in word_tokenize(doc) if str.isalpha(t) and len(t) >= 3]
 
 class TextResponseDataset(Dataset):
-	CLASSIFICATION_SETTINGS = {'my_dataset', 'amazon'}
+	CLASSIFICATION_SETTINGS = {'my_dataset','my_dataset_all'}
 
 	def __init__(self, dataset_name, column, data_file, processed_data_file, **kwargs):
 		super(Dataset, self).__init__()
@@ -46,13 +42,13 @@ class TextResponseDataset(Dataset):
 
 	def parse_args(self, **kwargs):
 		self.pretrained_theta = kwargs.get('pretrained_theta', None)
-		self.use_bigrams=bool(kwargs.get('use_bigrams', False))
+		self.use_bigrams=bool(kwargs.get('use_bigrams', True))
 
 	def load_data_from_raw(self):
 		if self.dataset_name == 'my_dataset':
 			docs, responses = load_my_dataset(self.column)
-		if self.dataset_name == 'amazon':
-			docs, responses = load_amazon();
+		if self.dataset_name == 'my_dataset_all':
+			docs, responses = load_dataset_all()
 		return docs, responses
 
 	def load_processed_data(self):
@@ -67,27 +63,29 @@ class TextResponseDataset(Dataset):
 	def get_vocab_size(self):
 		return self.vocab.shape[0]
 
-	def process_dataset(self):
+	def process_dataset(self, max_df=1.0, max_features=None):
 		if os.path.exists(self.processed_data_file):
 			counts, responses, vocab, docs = self.load_processed_data()
 		else:
 			docs, responses = self.load_data_from_raw()
+			# nltk.download('stopwords') uncomment this line in case stopwords-file are not on system
+			# nltk.download('punkt') uncomment this line in case punkt-file is not on system
 			stop = stopwords.words('english')
+			stop.extend(['could', 'doe', 'ha', 'might', 'must', 'need', 'sha', 'wa', 'would'])
 
-			#vectorizer = TfidfVectorizer(tokenizer=LemmaTokenizer(), ngram_range=(1, 1), stop_words=stop, max_df=0.7, min_df=0.0007)
-			vectorizer = CountVectorizer(tokenizer=LemmaTokenizer(), ngram_range=(1, 1), stop_words=stop, max_df=0.7, min_df=0.0007)
+			# With setting max-features, build a vocabulary that only consider the top max_features ordered by term frequency across the corpus.
+			vectorizer = CountVectorizer(tokenizer=LemmaTokenizer(), ngram_range=(1, 1), stop_words=stop, max_df=max_df, min_df=0.0007, max_features=max_features)
 			counts = vectorizer.fit_transform(docs).toarray()
 			vocab = vectorizer.get_feature_names_out()
 
 			if self.use_bigrams:
 				exclude2 = {'doesn','don', 'but', 'not', 'wasn', 'wouldn', 'couldn', 'didn', 'isn'} #{'not'}
 				stop2 = list(set(stop) - exclude2)
-				bigram_vec = CountVectorizer(tokenizer=LemmaTokenizer(), stop_words=stop2, ngram_range=(2, 2), min_df=0.007)
-				#bigram_vec = TfidfVectorizer(tokenizer=LemmaTokenizer(), stop_words=stop2, ngram_range=(2, 2), min_df=0.007)
+				bigram_vec = CountVectorizer(tokenizer=LemmaTokenizer(), stop_words=stop2, max_df=max_df, ngram_range=(2, 2), min_df=0.007, max_features=int(max_features/10))
 				bigram_counts = bigram_vec.fit_transform(docs).toarray()
 				counts = np.column_stack((counts, bigram_counts))
 				bigrams = bigram_vec.get_feature_names_out()
-				vocab = vocab+bigrams
+				vocab = np.hstack((vocab, bigrams))
 
 			vocab = np.array(vocab)
 			# saves the processed file to the /proc directory
@@ -134,7 +132,6 @@ class TextResponseDataset(Dataset):
 	def __getitem__(self, idx):
 		if not self.eval_mode:
 			datadict = {
-					# Hint: this actually represents tf-idf when the TfidfVectorizer is used in process_dataset()
 					'normalized_bow':torch.tensor(self.train_set_normalized_counts[idx, :], dtype=torch.float),
 					'bow':torch.tensor(self.train_set_counts[idx, :], dtype=torch.long),
 					'label':torch.tensor(self.train_set_labels[idx], dtype=torch.float)

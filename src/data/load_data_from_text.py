@@ -12,11 +12,10 @@ def load_my_dataset(column):
 	responses = df['outcome_numeric'].values
 	return docs, responses
 
-# Function for testing other data set
-def load_amazon():
-	df = pd.read_csv('../dat/amazon.csv')
-	docs = df['text'].values.astype('U')
-	responses = df['label'].values.astype('float')
+def load_dataset_all():
+	df = pd.read_csv('../dat/startup_data_final_all_text.csv')
+	docs = df['text'].values
+	responses = df['outcome_numeric'].values
 	return docs, responses
 
 def main(args):
@@ -28,7 +27,9 @@ def main(args):
 	np.random.seed(seed)
 
 	if dataset == 'my_dataset':
-		doc, responses = load_my_dataset()
+		doc, responses = load_my_dataset(args.column)
+	elif dataset == 'my_dataset_all':
+		doc, responses = load_dataset_all()
 
 	df = pd.DataFrame(np.column_stack((doc.T, responses.T)) , columns=['text', 'label'])
 	os.makedirs('../dat/csv_proc', exist_ok=True)
@@ -42,6 +43,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--data_file", action="store", default="")
 	parser.add_argument("--outfile", action="store", default="")
+	parser.add_argument("--column", action="store", default="from_idea_to_product")
 	parser.add_argument("--data", action="store", default="amazon")
 	args = parser.parse_args()
 

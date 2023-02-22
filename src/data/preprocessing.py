@@ -13,7 +13,8 @@ def main(args):
                'idea_backstory_motivation',
                'marketing_strategies',
                'background_and_current_work',
-               'challenges_obstacles_mistakes']
+               'challenges_obstacles_mistakes',
+               'main_lessons_and_advice']
 
     for column in columns:
         df_reduced = df[[column, 'outcome_numeric']]
