@@ -154,7 +154,7 @@ class ModelTrainer():
 					pretrained_theta = None
 
 				recon_loss, supervised_loss, kld_theta = self.model(bow, normalized_bow, labels, theta=pretrained_theta, 
-					penalty_bow=self.penalty_bow, penalty_gamma=self.penalty_gamma)
+					penalty_bow=self.penalty_bow, penalty_gamma=self.penalty_gamma) # implicit call of forward method
 				total_loss = recon_loss + supervised_loss + self.beta_penalty*kld_theta
 				# this is where the training happens
 				full_optimizer.zero_grad()
@@ -263,10 +263,11 @@ class ModelTrainer():
 				score1 = metrics.roc_auc_score(test_labels, predictions)
 				score2 = metrics.log_loss(test_labels, predictions, eps=1e-4)
 				
-				# pred = predictions >= 0.62 # changed from 0.5 (unorthodox :D)
 				pred = predictions >= 0.5
 				score3 = metrics.accuracy_score(test_labels, pred)
-				score = (score1, score2, score3)
+				score4 = metrics.precision_score(test_labels, pred)
+				score5 = metrics.f1_score(test_labels, pred)
+				score = (score1, score2, score3, score4, score5)
 			else:
 				score = metrics.mean_squared_error(test_labels, predictions)
 		return score, predictions
