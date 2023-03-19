@@ -6,10 +6,13 @@ import os
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk import word_tokenize
+from nltk import pos_tag
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 import nltk
-nltk.download('wordnet')
+import pandas as pd
+#nltk.download('wordnet')
+#nltk.download('averaged_perceptron_tagger')
 
 # This python script prepares the interview data for analysis. It contains functions to load the data, to generate the
 # document-term-matrix, to normalize the data and to assign train/test splits.
@@ -20,7 +23,10 @@ class LemmaTokenizer:
 	def __init__(self):
 		self.wnl = WordNetLemmatizer()
 	def __call__(self, doc):
-		return [self.wnl.lemmatize(t) for t in word_tokenize(doc) if str.isalpha(t) and len(t) >= 3]
+		tokens = word_tokenize(doc)
+		tagged_tokens = nltk.pos_tag(tokens)
+		lemmas = [self.wnl.lemmatize(token[0]) for token in tagged_tokens if token[1] != 'NNP' and token[1] != 'NNPS' and str.isalpha(token[0]) and len(token[0]) >= 3]
+		return lemmas
 
 class TextResponseDataset(Dataset):
 	CLASSIFICATION_SETTINGS = {'my_dataset','my_dataset_all'}
@@ -72,6 +78,10 @@ class TextResponseDataset(Dataset):
 			# nltk.download('punkt') uncomment this line in case punkt-file is not on system
 			stop = stopwords.words('english')
 			stop.extend(['could', 'doe', 'ha', 'might', 'must', 'need', 'sha', 'wa', 'would'])
+
+			# Dataset specific stop words - startup names:
+			specific_stop_words = pd.read_csv('../dat/startups.csv')['startup'].values
+			stop.extend(specific_stop_words)
 
 			# With setting max-features, build a vocabulary that only consider the top max_features ordered by term frequency across the corpus.
 			vectorizer = CountVectorizer(tokenizer=LemmaTokenizer(), ngram_range=(1, 1), stop_words=stop, max_df=max_df, min_df=0.0007, max_features=max_features)

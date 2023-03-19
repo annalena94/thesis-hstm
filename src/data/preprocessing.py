@@ -16,6 +16,9 @@ def main(args):
                'challenges_obstacles_mistakes',
                'main_lessons_and_advice']
 
+    df_startups = df['startup']
+    df_startups.to_csv('../dat/startups.csv', header=True)
+
     for column in columns:
         df_reduced = df[[column, 'outcome_numeric']]
         df_reduced.insert(2, "gender", gender['gender'])
